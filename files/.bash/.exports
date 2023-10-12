@@ -52,11 +52,12 @@ export VAGRANT_DEFAULT_PROVIDER="${VAGRANT_DEFAULT_PROVIDER:-vmware_fusion}"
 export PGHOST="${PGHOST:-localhost}"
 export PGUSER="${PGUSER:-postgres}"
 export PGDATABASE="${PGDATABASE:-postgres}"
-export PGVERSION="${PGVERSION:-9.5}" # this is not a standard PG ENV VAR
+export PGVERSION="${SWITCHED_PGVERSION:-${PGVERSION:-9.5}}" # this is not a standard PG ENV VAR
 
 # Themes
 
 export BAT_THEME="GitHub"
+export MCFLY_LIGHT=TRUE
 
 # =============================================================================
 
@@ -67,7 +68,8 @@ export WORKSPACE="${WORKSPACE:-$HOME/Workspace}"
 
 # PHP Laravel Valet
 # PHP_EXTENSIONS Used in custom bash function 'switch_php'
-export PHP_EXTENSIONS="${PHP_EXTENSIONS:-shivammathur/extensions/redis shivammathur/extensions/apcu shivammathur/extensions/memcached shivammathur/extensions/mongodb shivammathur/extensions/imagick shivammathur/extensions/xdebug shivammathur/extensions/imap shivammathur/extensions/msgpack shivammathur/extensions/igbinary}" # from shivammathur/extensions/imagickexport PHP_EXTENSIONS="${PHP_EXTENSIONS:-shivammathur/extensions/redis shivammathur/extensions/apcu shivammathur/extensions/memcached shivammathur/extensions/mongodb shivammathur/extensions/imagick shivammathur/extensions/xdebug shivammathur/extensions/imap shivammathur/extensions/msgpack shivammathur/extensions/igbinary}" # from shivammathur/extensions/imagick
+export PHP_EXTENSIONS="${PHP_EXTENSIONS:-shivammathur/extensions/redis shivammathur/extensions/apcu shivammathur/extensions/memcached shivammathur/extensions/mongodb shivammathur/extensions/imagick shivammathur/extensions/xdebug shivammathur/extensions/imap shivammathur/extensions/msgpack shivammathur/extensions/igbinary}"
+# from shivammathur/extensions/imagickexport PHP_EXTENSIONS="${PHP_EXTENSIONS:-shivammathur/extensions/redis shivammathur/extensions/apcu shivammathur/extensions/memcached shivammathur/extensions/mongodb shivammathur/extensions/imagick shivammathur/extensions/xdebug shivammathur/extensions/imap shivammathur/extensions/msgpack shivammathur/extensions/igbinary}" # from shivammathur/extensions/imagick
 
 
 
@@ -87,6 +89,12 @@ if test ! -z "${USING_PERL}"; then
     PERL_MM_OPT="INSTALL_BASE=$HOME/perl5"; export PERL_MM_OPT;
 fi
 
+# PNPM
+export PNPM_HOME="$HOME/Library/pnpm"
+if test -d "$PNPM_HOME"; then
+    export PATH="$PNPM_HOME:$PATH"
+fi
+
 # Node Version Manager
 if test -d "$HOME/.nvm"; then
     export NVM_DIR="$HOME/.nvm"
@@ -98,3 +106,6 @@ if test -d "$HOME/.jenv/versions"; then
     export PATH="$HOME/.jenv/bin:$PATH"
 fi
 
+# redis-cli ( as using redis 6.2 need to force it's preference in the path)
+# see install file where we 'brew pin redis@6.2'
+export PATH="/usr/local/opt/redis@6.2/bin:$PATH"

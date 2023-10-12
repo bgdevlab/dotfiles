@@ -9,6 +9,7 @@ tap 'bgdevlab/navicat-for-postgresql'
 tap 'shivammathur/php'
 tap 'shivammathur/extensions'
 tap 'nicoverbruggen/homebrew-cask'
+tap 'cantino/mcfly'
 
 # -----------------------------------------------------------------------------
 
@@ -42,13 +43,15 @@ brew 'java'
 brew 'jenv'
 brew 'jq'
 brew 'less'
+brew 'cantino/mcfly/mcfly'
 brew 'mackup'
 brew 'mas'
 brew 'nginx'
 brew 'nvm'
 # brew 'php@8.0'
 brew 'postgresql@9.5'
-brew 'redis'
+# brew 'pnpm'  # curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=6.32.1  sh -
+brew 'redis@6.2', restart_service: true, link: true, conflicts_with: ["redis"]
 brew 'ripgrep'
 brew 'shellcheck'
 brew 'shivammathur/php/php@7.0'
@@ -76,7 +79,7 @@ brew 'zsh'
 #
 # apps
 #
-cask 'docker'
+# cask 'docker' # doesnt seem to install docker - manual download - https://desktop.docker.com/mac/main/arm64/Docker.dmg
 cask 'firefox-developer-edition'
 cask 'google-chrome'
 cask 'imageoptim'
@@ -115,7 +118,7 @@ cask 'jetbrains-toolbox'
 cask 'typora'
 cask 'vmware-fusion'
 
-mas '1Password 7', id: 1333542190
+# mas '1Password 7', id: 1333542190 # installing 1password8 via brew
 mas 'Numbers', id: 409203825
 mas 'Pages', id: 409201541
 mas 'Slack', id: 803453959

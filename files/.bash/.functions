@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# macOS sed fix - https://stackoverflow.com/questions/5694228/sed-in-place-flag-that-works-both-on-mac-bsd-and-linux
+sedi=(-i) && [ "$(uname)" == "Darwin" ] && sedi=(-i '')
+# usage - sed "${sedi[@]}" "s/^LOOKFOR.*/REPALCEWITH/" yourfile
+
 # `tre` is a shorthand for `tree` with hidden files and color enabled, ignoring
 # the `.git` directory, listing directories first. The output gets piped into
 # `less` with options to preserve color and line numbers, unless the output is
@@ -19,7 +23,6 @@ function sudo_using_default() {
 	sudo sed -i.bak 's/^auth.*sufficient.*\.so/auth       sufficient     pam_smartcard.so/' /etc/pam.d/sudo;
 }
 
-
 function brew_service_pluck() {
     case $# in
         1 )
@@ -33,6 +36,14 @@ function brew_service_pluck() {
     esac
 }
 
+function nah() {
+    archivelist=$(mktemp "/tmp/nah-reset-list.$(basename $(pwd)).$(date "+%Y-%m-%d_%H%M").XXXXXXX") &&
+    safearchive="$archivelist.tar.gz" &&
+    git ls-files --others --exclude-standard -m > $archivelist &&
+    tar -czf $safearchive -T $archivelist &>/dev/null || true &&
+    echo -e "View contents of archived changes (just in case) with \ntar -tvf $safearchive\n" &&
+    git reset --hard && git clean -df
+}
 
 function plist_pluck() {
     # e.g. show the path for php 7.0 brew service
@@ -94,7 +105,7 @@ function what_port() {
 		return 1;
 	fi
 	echo "looking for '$1'"
-	lsof -nP -iTCP -sTCP:LISTEN | grep "${1}"
+	lsof -nP -iTCP -sTCP:LISTEN | grep ":${1}"
 	# ps -Ao user,pid,command | grep -v grep | grep $(netstat -anv | grep "$searchport " | awk '{print $9}')
 }
 
@@ -145,6 +156,17 @@ function op() {
 	fi
 }
 
+function npmlist() {
+    # e.g. npmlist prebuild
+    # e.g. npmlist prebuild withdate
+    local s=""
+    local d=""
+    [ $# -eq 1 ] && s="_$1"
+    [ $# -eq 2 ] && d="_"$(date "+%Y_%m_%d.%H%M%S")
+    npm list --depth=0 > "npm${s}_list0${d}.txt"
+    npm list --depth=1 > "npm${s}_list1${d}.txt"
+    npm list --depth=2 > "npm${s}_list2${d}.txt"
+}
 
 function man() {
     # colour for man pages
@@ -248,14 +270,84 @@ function js_env_install() {
 # ===========================================================================
 #   PHP Laravel Valet Composer
 
+#   auth:clear-resets                               Flush expired password reset tokens
+#   cache:clear                                     Flush the application cache
+#   clear-compiled                                  Remove the compiled class file
+#   config:clear                                    Remove the configuration cache file
+#   debugbar:clear                                  Clear the Debugbar Storage
+#   email-suppressions:clear-bounced-emails         Clear Bounced Emails from SendGrid
+#   event:clear                                     Clear all cached events and listeners
+#   media-library:clear                             Delete all items in a media collection.
+#   opcache:clear                                   Clear OPCache
+#   optimize:clear                                  Remove the cached bootstrap files
+#   queue:clear                                     Delete all of the jobs from the specified queue
+#   route:clear                                     Remove the route cache file
+#   schedule:clear-cache                            Delete the cached mutex files created by scheduler
+#   view:clear                                      Clear all compiled view files
+
 
 function clearall() {
     [ ! -e ./artisan ] && echo "no artisan" && return
-    php artisan cache:clear
-    php artisan config:clear
-    php artisan route:clear
-    [ "$1" == 'oc' ] && php artisan opcache:clear || echo -e "Skipping: artisan opcache:clear ( use argument 'oc' ) "
-    php artisan optimize
+    artisan="php artisan "
+    dotenv=.env
+    clearenv="${1:-${APP_ENV:-}}"
+    if [ -n "$clearenv" ]; then
+        artisan="php artisan --env $clearenv "
+        dotenv=.env.$clearenv
+        # reset if local
+        if [ "$clearenv" = "local" ]; then
+            dotenv=.env
+        fi
+    fi
+    echo -e "\nUsing APP_ENV as '${clearenv:-local}' with dotenv file $dotenv \n"
+    [ ! -e "${dotenv}" ] && {
+        echo "Stopping - cannot find dotenv file '$dotenv'"
+        return 1
+    }
+    grep -E 'APP_ENV|_CONNECTION|_DRIVER|PROCORE|DB_DATABASE' $dotenv
+
+    php_ver="$(get_php_version)"
+
+    case "$php_ver" in
+    5.6)
+        logit "not supported" && return 1
+        ;;
+    7.0)
+        artisan="php artisan "
+        # there isn't optimize:clear for php7.0 compatible laravel versions
+        # $artisan event:clear
+        $artisan view:clear
+        $artisan cache:clear
+        $artisan route:clear
+        $artisan config:clear
+        # the above called in newer laravel versions via optimize:clear
+        $artisan clear-compiled
+        # /bin/rm -f bootstrap/cache/*.php || true
+        $artisan opcache:clear &>/dev/null || echo -e "Skipping: artisan opcache:clear ( use argument 'oc' ) "
+        $artisan queue:flush
+
+        if [ $# -gt 1 ]; then
+            # optimize things again.
+            $artisan optimize
+        fi
+        ;;
+     *)
+        # this clears all
+        $artisan optimize:clear
+        # /bin/rm -f bootstrap/cache/*.php || true
+        $artisan opcache:clear &>/dev/null || echo -e "Skipping: artisan opcache:clear ( use argument 'oc' ) "
+        $artisan queue:clear
+        $artisan queue:flush
+        $artisan schedule:clear-cache
+
+        if [ $# -gt 1 ]; then
+            # optimize things again.
+            $artisan optimize
+        fi
+    esac
+
+    return
+
 }
 
 # TODO - move to autocomplete section
@@ -320,6 +412,37 @@ function valet_config_backup() {
     else
         echo "👎 backup of composer and valet configuration ($backup_config) FAILED"
     fi
+}
+
+function xdebug_install_phpstorm() {
+    local PHP_VERSION="${1:-7.0}"
+    local XDEBUG_PORT="${2:-9001}"
+cat <<XDEBUG_CONF
+[xdebug]
+zend_extension="/usr/local/opt/xdebug@$PHP_VERSION/xdebug.so"
+# https://kevdees.com/installing-xdebug-for-php7/
+xdebug.remote_enable = 1
+xdebug.remote_connect_back=1
+xdebug.scream=1
+xdebug.show_local_vars=1
+xdebug.idekey=PHPSTORM
+xdebug.remote_port = $XDEBUG_PORT
+
+[xdebug]
+# for xdebug 3.0+
+#zend_extension="/usr/local/opt/xdebug@$PHP_VERSION/xdebug.so"
+#zend_extension=xdebug.so
+xdebug.mode=debug
+xdebug.client_port=$XDEBUG_PORT
+xdebug.scream=1
+xdebug.idekey=PHPSTORM
+xdebug.start_with_request=yes
+xdebug.show_local_vars=1
+xdebug.discover_client_host=true
+#xdebug.client_host=172.16.252.1
+xdebug.client_host=127.0.0.1
+XDEBUG_CONF
+
 }
 
 
@@ -533,15 +656,87 @@ function enter_directory() {
 function pghashlib_install() {
 
     brew install docutils # provides rst2html command
-    cd /tmp && \
+    pushd /tmp && \
     wget --quiet https://github.com/markokr/pghashlib/archive/master.zip -O pghashlib.zip && \
-    unzip pghashlib.zip && \
+    echo "unzip" && unzip pghashlib.zip &>/dev/null && \
     pushd pghashlib-master && \
-    make && \
-    make install && \
+    echo "hashlib install" && \
+    echo "make" && make &>/dev/null && \
+    echo "make install" && make install &>/dev/null && \
+    echo "hashlib done"
+
     popd && \
-    rm -rf pghashlib-master && \
-    rm -f pghashlib.zip
+    echo "Tidyup hashlib" && \
+    [ -e pghashlib-master ] && rm -rf pghashlib-master && \
+    rm -f pghashlib.zip &>/dev/null || true
+
+    popd
+
+    psql -U $(whoami) -c "create role postgres superuser login password '';" &>/dev/null || true
+    psql -U postgres -c "drop extension hashlib" &>/dev/null || true
+
+    psql -U postgres  -c "create extension hashlib" && \
+    [ $(psql -U postgres -t -c "select encode(hash128_string('abcdefg', 'murmur3'), 'hex');" | head -1 | awk '{print $1}') == '069b3c88000000000000000000000000' ] \
+        && echo 'pghashlib installed correctly' \
+        || 'pghashlib not installed correctly'
+
+}
+
+function fix_postgres() {
+    local PG_VERSION="${1:-${PGVERSION:-9.5}}"
+
+    brew services stop postgresql@${PG_VERSION};
+    mkdir -p /usr/local/var/postgresql@${PG_VERSION}/{{pg_commit_ts,pg_dynshmem,pg_replslot,pg_serial,pg_snapshots,pg_stat,pg_stat_tmp,pg_tblspc,pg_twophase},pg_logical/{mappings,snapshots}}
+    rm -f /usr/local/var/postgresql@${PG_VERSION}/postmaster.pid &>/dev/null
+    pgpids="$(ps ax  | grep 'postgre[s]ql\@' | awk '{print $1}')"
+    [ -z "${pgpids}" ] && echo "NO postgres IDS found." || /bin/kill -SIGHUP "$pgpids" &>/dev/null
+    brew services start postgresql@${PG_VERSION}
+    sleep 2
+    pghashlib_install
+    psql -l
+}
+
+function switch_postgres() {
+    local PG_VERSION="${1:-${PGVERSION:-9.5}}"
+
+    # stop all postgresql services
+    versions=$(find /usr/local/opt -path '*/postgresql@*' | sed 's#/usr/local/opt/##g')
+    if ! echo "$versions" | grep $PG_VERSION; then
+        echo "Postgres $PG_VERSION is not installed."
+        return 1
+    fi
+
+    # remove requested version for all versions - lets not stop it if its already running.
+    versions=$(echo $versions | sed "s#postgresql@$PG_VERSION##g")
+    for version in $versions; do
+        brew services stop $version &>/dev/null
+    done
+
+    sed -i '' "/SWITCHED_PGVERSION/d" $HOME/.versions
+    echo "SWITCHED_PGVERSION=$PG_VERSION # $(date)" >> $HOME/.versions
+
+    PGVERSION=$PG_VERSION
+    export PGVERSION
+
+
+    # clean and update PATH
+    CLEANED_PATH="$(echo $PATH | sed -E 's#/usr/local/opt/postgresql@[0-9.]*/bin[/]*[:]*##g')"
+    export PATH="$CLEANED_PATH"
+
+    # set environment as per brew info for the service
+    if test -e /usr/local/opt/postgresql@${PGVERSION}; then
+        export PATH="/usr/local/opt/postgresql@${PGVERSION}/bin:$PATH"
+        export LDFLAGS="-L/usr/local/opt/postgresql@${PGVERSION}/lib"
+        export CPPFLAGS="-I/usr/local/opt/postgresql@${PGVERSION}/include"
+    fi
+
+    brew services start postgresql@${PG_VERSION}
+}
+
+function rebuildOpenWith() {
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user
+    killall Finder
+    # see https://mac-how-to.gadgethacks.com/how-to/remove-duplicates-customize-open-with-menu-mac-os-x-0157100/
 }
 
 
@@ -592,3 +787,77 @@ function git-forget-blob()
     # Boston, MA  02111-1307  USA
 }
 
+function git_late_night_commits() {
+    [ $# -lt 2 ] && {
+        echo -e "Usage: ${FUNCNAME[0]} since-date author-name field_delim\n\tsince-data    YYYY-MM-DD\n\tauthor-name   any-text\n\tfield_delim    delimiter"
+        return 1
+    }
+    delim="${3:-~}"
+    git log --all --date=iso-local --pretty=format:"%h${delim}%ad${delim}%an %d${delim}%s " --since="$1" | grep -i "$2" | grep -E "( 1[89]:)|( 2[0-4]:)|( 0[0-5]:)";
+}
+
+
+function git_late_night_commits_daily() {
+    [ $# -lt 2 ] && {
+        echo -e "Usage: ${FUNCNAME[0]} since-date author-name field_delim\n\tsince-data    YYYY-MM-DD\n\tauthor-name   any-text\n\tfield_delim    delimiter"
+        return 1
+    }
+    delim="${3:-~}"
+    # group by day and list first and last commit for that day
+
+    list="$(git_late_night_commits $1 $2 $delim | cut -d$delim -f2,4-)"
+    days=$(echo "$list" | cut -d$delim -f1 | cut -d' ' -f1 | sort --unique)
+    starting=$(for day in $days; do echo "$list" | grep $day | sort -k2,2 | head -1;done)
+    ending=$(for day in $days; do echo "$list" | grep $day | sort -k2,2 | tail -1;done)
+    # combine and order again
+    (echo "$starting";echo "$ending") | sort -k1,1 -r -k2,2 --unique | sed -E 's/\+[0-9]{1,4}//g' | tr "$delim" " "
+    unset list days starting ending
+}
+
+function late_night_report() {
+    [ $# -lt 2 ] && {
+        echo -e "Usage: ${FUNCNAME[0]} since-date author-name field_delim\n\tsince-data    YYYY-MM-DD\n\tauthor-name   any-text\n\tfield_delim    delimiter"
+        return 1
+    }
+    for repo in $(find $WORKSPACE -type d -name '.git' -maxdepth 3); do echo $repo; pushd $repo &>/dev/null;git_late_night_commits_daily $1 $2 $3;popd &>/dev/null; done
+}
+
+
+function git_grouped_log () {
+  while read -r -u 9 since name
+  do
+    until=$(date -j -v+1d -f '%Y-%m-%d' $since +%Y-%m-%d)
+
+    echo "$since $name"
+    echo
+
+    GIT_PAGER=cat git log             \
+      --date=iso-local \
+      --committer="$name"             \
+      --since="$since 00:00:00 +0000" \
+      --until="$until 00:00:00 +0000" \
+      --pretty=format:"%h : %ad : %an %d : %s "
+
+    echo
+  done 9< <(git log --date=iso-local --format=$'%cd %cn' | grep -i "$2" | grep -E "( 1[89]:)|( 2[0-4]:)|( 0[0-5]:)"| sort --unique --reverse)
+}
+
+
+function git-grouped-log_original () {
+  while read -r -u 9 since name
+  do
+    until=$(date -j -v+1d -f '%Y-%m-%d' $since +%Y-%m-%d)
+
+    echo "$since $name"
+    echo
+
+    GIT_PAGER=cat git log             \
+      --no-merges                     \
+      --committer="$name"             \
+      --since="$since 00:00:00 +0000" \
+      --until="$until 00:00:00 +0000" \
+      --format='  * [%h] %s'
+
+    echo
+  done 9< <(git log --no-merges --format=$'%cd %cn' --date=short | sort --unique --reverse)
+}

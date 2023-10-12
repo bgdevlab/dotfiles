@@ -25,6 +25,8 @@ mas 'WhatsApp Desktop', id: 1147396723
 #
 cask 'little-snitch'
 cask 'handbrake'
+cask 'monitorcontrol'
+cask '1password'
 
 mas 'Affinity Photo', id: 824183456
 mas 'Affinity Designer', id: 824171161

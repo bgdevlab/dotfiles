@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# ! Important behaviour when entering folders - see function 'enter_directory' in .functions
 
 BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # $HOME
 
@@ -10,6 +11,7 @@ BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # $HOME
 # Standardising on $HOME.bashrc over $HOME/.profile as $HOME/.bash_profile makes $HOME/.profile obsolete and ignores it
 #
 
+[ -r $BASEDIR/.versions ] && source $BASEDIR/.versions || true
 [ -r $BASEDIR/.credentials ] && source $BASEDIR/.credentials || true
 [ -r $BASEDIR/.profile ] && source $BASEDIR/.profile || true
 [ -r $BASEDIR/.functions ] && source $BASEDIR/.functions || true
@@ -17,6 +19,7 @@ BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # $HOME
 [ -r $BASEDIR/.aliases ] && source $BASEDIR/.aliases || true
 [ -r $BASEDIR/.ps1 ] && source $BASEDIR/.ps1 || true # start aware prompt
 [ -r $BASEDIR/dotfiles/files/switch_php ] && source $BASEDIR/dotfiles/files/switch_php || true
+[ -r $BASEDIR/.adhoc ] && source $BASEDIR/.adhoc || true
 
 
 # Add folder to search PATH if it exists
@@ -59,3 +62,6 @@ fi
 if test ! -z "${NVM_DIR}"; then
     [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 fi
+
+# Mcfly - https://github.com/cantino/mcfly
+type mcfly &>/dev/null && eval "$(mcfly init bash)"
