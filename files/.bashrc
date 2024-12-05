@@ -16,7 +16,7 @@ BASEDIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))" # dotfiles directory
 type mcfly &>/dev/null && eval "$(mcfly init bash)"
 
 # Starship - easy command prompt
-eval "$(starship init bash)"
+type starship &>/dev/null && eval "$(starship init bash)"
 # starship generates a PROMPT_COMMAND, append our enter_directory function to it
 if test -z "$PROMPT_COMMAND"; then
     export PROMPT_COMMAND="enter_directory"
