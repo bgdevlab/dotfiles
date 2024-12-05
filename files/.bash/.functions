@@ -96,19 +96,90 @@ function postgres_dev_init() {
 }
 
 
-function what_port() {
 
-	# macOs - what app is running on a port
-
-	if [ $# -ne 1 ]; then
-		echo "need to know the port";
-		return 1;
-	fi
-	echo "looking for '$1'"
-	lsof -nP -iTCP -sTCP:LISTEN | grep ":${1}"
-	# ps -Ao user,pid,command | grep -v grep | grep $(netstat -anv | grep "$searchport " | awk '{print $9}')
+function kill_port () {
+    [ $# -eq 1 ] && kill $(lsof -t -i4TCP:$1) && echo 'done'
 }
 
+
+function what_port() {
+
+	# macOS - what app is running on a port
+
+	if [ $# -lt 1 ]; then
+		echo "usage: PORT";
+		return 1;
+	fi
+    local port=$1
+
+    type -p nc &>/dev/null || {
+        echo "cannot find util nc... please install nc, brew install nc"
+        return 3
+    }
+    type -p pstree &>/dev/null || {
+        echo "cannot find util nc... please install nc, brew install pstree"
+        return 3
+    }
+
+    if nc -z localhost $port &>/dev/null; then
+	    echo "PORT '$port' on localhost has a process listening"
+
+        # find ps for port
+	    pids=$(netstat -anv | awk '{print $4","$11}' | grep "\.$port," | cut -d, -f2 | uniq | xargs)
+        # find parent id (exclude 0 or 1 for launchd)
+	    ppids=$(ps -o ppid -p $pids | tail -n +2 | grep -v 1 | xargs || true)
+	    #
+	    [ -z $ppids ] && pstree $pids || pstree $ppids
+	    return
+    else
+        echo "PORT '$port' on localhost does not have a process listening">&2
+        return 1
+    fi
+
+}
+
+
+function d() {
+    po $@
+}
+
+function po() {
+    local items
+
+    if test $# -gt 0; then
+        wildmatch1='*';
+        wildmatch2='*';
+
+        local folder1="$1"
+        if echo "$1" | grep '/$' &>/dev/null; then
+            wildmatch1=''
+            folder1=$(echo "$folder1" | tr -d '/')
+        fi
+
+        if test $# -eq 1; then
+            items=$(find $HOME/{Code,Workspace,Projects} -maxdepth 2 -mindepth 1 \( -type l -o -type d \) -path "*/*${folder1}${wildmatch1}" 2>/dev/null)
+        else
+            local folder2="$2"
+            if echo "$2" | grep '/$' &>/dev/null; then
+                wildmatch2=''
+                folder2=$(echo "$folder2" | tr -d '/')
+            fi
+            items=$(find $HOME/{Code,Workspace,Projects} -maxdepth 2 -mindepth 1 \( -type l -o -type d \) -path "*/*${folder1}${wildmatch1}/*${folder2}${wildmatch2}" 2>/dev/null)
+        fi
+
+    else
+        items=$(find $HOME/{Code,Workspace,Projects} -maxdepth 2 -mindepth 1 \( -type l -o -type d \) 2>/dev/null)
+    fi
+
+    # folder with quotes break xargs
+    local parsed=$(echo "$items" | tr -d '"' | tr -d "'")
+    if test $(echo "$parsed" | xargs | wc -l) -gt 0; then
+        selected="$(echo "$items"  | fzf)"
+	    cd "$selected"
+    else
+        echo "nothing found"
+    fi
+}
 
 function op() {
 	#
@@ -636,16 +707,28 @@ function clear_dns_cache() {
 
 
 function enter_directory() {
+    # use this function in the PROMPT_COMMAND to auto execute when changing into a directory.
+    # e.g. export PROMPT_COMMAND="$PROMPT_COMMAND; enter_directory"
 
 	if [[ $PWD == $PREV_PWD ]]; then
 		return
 	fi
-	PREV_PWD=$PWD
-	[[ -f ".nvmrc" ]] && nvm use || true
-    # Use correct node version AND use latest compatible NPM
 
-    php_cli_from_valet || true
+	PREV_PWD=$PWD
+
+    if [ -f .enter ]; then
+	    # look in current directory for a .enter script to run and return
+	    source .enter
+	    return
+    fi
+
+    # default behaviour when
+
+    # Use correct node version AND use latest compatible NPM
+    [[ -f ".nvmrc" ]] && nvm use || true
+
     # set local PATH to use PHP as defined in .valetphprc
+    type php_cli_from_valet &>/dev/null && php_cli_from_valet || true
 
     [ -f "package.json" -o -f ".nvmrc" ] && {
         [ "$(npm -v | cut -d. -f1)" -lt 8 ] && echo "Suggest: upgrade npm with 'npm install -g npm@latest'"

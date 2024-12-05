@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # ! Important behaviour when entering folders - see function 'enter_directory' in .functions
-
+BREW_PREFIX=$(brew --prefix)
 BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # $HOME
-
+BASEDIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))" # dotfiles directory
 #
 # https://scriptingosx.com/2017/04/about-bash_profile-and-bashrc-on-macos/
 # https://books.apple.com/book/moving-to-zsh/id1483591353
@@ -11,16 +11,29 @@ BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # $HOME
 # Standardising on $HOME.bashrc over $HOME/.profile as $HOME/.bash_profile makes $HOME/.profile obsolete and ignores it
 #
 
+
+# Mcfly - https://github.com/cantino/mcfly
+type mcfly &>/dev/null && eval "$(mcfly init bash)"
+
+# Starship - easy command prompt
+eval "$(starship init bash)"
+# starship generates a PROMPT_COMMAND, append our enter_directory function to it
+if ! echo "$PROMPT_COMMAND" | grep 'enter_directory'; then # add enter_directory once.
+    export PROMPT_COMMAND="$PROMPT_COMMAND; enter_directory"
+fi
+
+USE_SWITCH_PHP_HACKERY='yes use switch_php script (pre OrbStack and Herd adoption 2024-SEPT)'
+# unset USE_SWITCH_PHP_HACKERY # Herd and OrbStack only...
+
 [ -r $BASEDIR/.versions ] && source $BASEDIR/.versions || true
 [ -r $BASEDIR/.credentials ] && source $BASEDIR/.credentials || true
 [ -r $BASEDIR/.profile ] && source $BASEDIR/.profile || true
 [ -r $BASEDIR/.functions ] && source $BASEDIR/.functions || true
 [ -r $BASEDIR/.exports ] && source $BASEDIR/.exports || true
 [ -r $BASEDIR/.aliases ] && source $BASEDIR/.aliases || true
-[ -r $BASEDIR/.ps1 ] && source $BASEDIR/.ps1 || true # start aware prompt
+#[ -r $BASEDIR/.ps1 ] && source $BASEDIR/.ps1 || true # start aware prompt
 [ -r $BASEDIR/dotfiles/files/switch_php ] && source $BASEDIR/dotfiles/files/switch_php || true
 [ -r $BASEDIR/.adhoc ] && source $BASEDIR/.adhoc || true
-
 
 # Add folder to search PATH if it exists
 for folder in $COMPOSER_HOME $HOME/.yarn/bin $HOME/bin /usr/local/bin /usr/local/sbin;
@@ -46,22 +59,18 @@ if test -r "$HOME/.jenv"; then
 	eval "$(jenv init -)" || echo "jenv failed to initialise"
 fi
 
-
-
-# ===========================================================================
-#		Auto Complete
-
-# Twilio Auto Complete
-[ -f $HOME/.twilio-cli/autocomplete/bash_setup ] && source $HOME/.twilio-cli/autocomplete/bash_setup || true;
-
-# Bash Auto Complete
-[ -f /usr/local/etc/bash_completion ] && source /usr/local/etc/bash_completion || echo -e "missing bash-completion, try\n\tbrew install bash-completion"
-[ -r /usr/local/etc/profile.d/bash_completion.sh ] && source /usr/local/etc/profile.d/bash_completion.sh || true
-
 # Node Version Manager - Auto Complete
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 if test ! -z "${NVM_DIR}"; then
     [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 fi
 
-# Mcfly - https://github.com/cantino/mcfly
-type mcfly &>/dev/null && eval "$(mcfly init bash)"
+# ===========================================================================
+#		Auto Complete
+
+# Bash Auto Complete
+# bash v3 on mac doesnt support nosort option - lets ignore it https://rakhesh.com/mac/bash-complete-nosort-invalid-option-name/
+[ ! -f /usr/local/etc/bash_completion ] && echo -e "missing bash-completion, try\n\tbrew install bash-completion"
+# install brew bash (v5) and nosort is supported.
+[ -f /usr/local/etc/bash_completion ] && . /usr/local/etc/bash_completion 2>&1  | sed '/^$/d'
+[[ -r "/usr/local/etc/profile.d/bash_completion.sh" ]] && source "/usr/local/etc/profile.d/bash_completion.sh" | sed '/^$/d'
