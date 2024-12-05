@@ -31,11 +31,12 @@ USE_SWITCH_PHP_HACKERY='yes use switch_php script (pre OrbStack and Herd adoptio
 [ -r $BASEDIR/.versions ] && source $BASEDIR/.versions || true
 [ -r $BASEDIR/.credentials ] && source $BASEDIR/.credentials || true
 [ -r $BASEDIR/.profile ] && source $BASEDIR/.profile || true
-[ -r $BASEDIR/.functions ] && source $BASEDIR/.functions || true
-[ -r $BASEDIR/.exports ] && source $BASEDIR/.exports || true
-[ -r $BASEDIR/.aliases ] && source $BASEDIR/.aliases || true
+[ -r $BASEDIR/.bash/.functions ] && source $BASEDIR/.bash/.functions || true
+#[ -r $BASEDIR/postgres ] && source $BASEDIR/postgres || echo "No postgres script"
+[ -r $BASEDIR/.bash/.exports ] && source $BASEDIR/.bash/.exports || true
+[ -r $BASEDIR/.bash/.aliases ] && source $BASEDIR/.bash/.aliases || true
 #[ -r $BASEDIR/.ps1 ] && source $BASEDIR/.ps1 || true # start aware prompt
-[ -r $BASEDIR/dotfiles/files/switch_php ] && source $BASEDIR/dotfiles/files/switch_php || true
+[ -r $BASEDIR/switch_php ] && [ -n "$USE_SWITCH_PHP_HACKERY" ] && source $BASEDIR/switch_php || true
 [ -r $BASEDIR/.adhoc ] && source $BASEDIR/.adhoc || true
 
 # Add folder to search PATH if it exists
