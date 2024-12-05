@@ -21,7 +21,7 @@ type starship &>/dev/null && eval "$(starship init bash)"
 if test -z "$PROMPT_COMMAND"; then
     export PROMPT_COMMAND="enter_directory"
 fi
-if ! echo "$PROMPT_COMMAND" | grep 'enter_directory'; then # add enter_directory once.
+if ! echo "$PROMPT_COMMAND" | grep -v 'enter_directory'; then # add enter_directory once.
     export PROMPT_COMMAND="$PROMPT_COMMAND; enter_directory"
 fi
 
@@ -37,7 +37,7 @@ USE_SWITCH_PHP_HACKERY='yes use switch_php script (pre OrbStack and Herd adoptio
 [ -r $BASEDIR/.bash/.aliases ] && source $BASEDIR/.bash/.aliases || true
 #[ -r $BASEDIR/.ps1 ] && source $BASEDIR/.ps1 || true # start aware prompt
 [ -r $BASEDIR/switch_php ] && [ -n "$USE_SWITCH_PHP_HACKERY" ] && source $BASEDIR/switch_php || true
-[ -r $BASEDIR/.adhoc ] && source $BASEDIR/.adhoc || true
+[ -r $HOME/.adhoc ] && source $HOME/.adhoc || true
 
 # Add folder to search PATH if it exists
 for folder in $COMPOSER_HOME $HOME/.yarn/bin $HOME/bin /usr/local/bin /usr/local/sbin;
