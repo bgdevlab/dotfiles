@@ -28,7 +28,7 @@ USE_SWITCH_PHP_HACKERY='yes use switch_php script (pre OrbStack and Herd adoptio
 [ -r $BASEDIR/.versions ] && source $BASEDIR/.versions || true
 [ -r $BASEDIR/.credentials ] && source $BASEDIR/.credentials || true
 [ -r $BASEDIR/.profile ] && source $BASEDIR/.profile || true
-if type starship &>/dev/null; then # ifnot using starsup prompts
+if ! type starship &>/dev/null; then # ifnot using starsup prompts
     [ -r $BASEDIR/.bash/.ps1 ] && source $BASEDIR/.bash/.ps1 || true # start aware prompt
 fi
 [ -r $BASEDIR/.bash/.functions ] && source $BASEDIR/.bash/.functions || true
