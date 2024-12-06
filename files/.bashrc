@@ -29,7 +29,7 @@ USE_SWITCH_PHP_HACKERY='yes use switch_php script (pre OrbStack and Herd adoptio
 [ -r $BASEDIR/.credentials ] && source $BASEDIR/.credentials || true
 [ -r $BASEDIR/.profile ] && source $BASEDIR/.profile || true
 if type starship &>/dev/null; then # ifnot using starsup prompts
-    [ -r $BASEDIR/.ps1 ] && source $BASEDIR/.ps1 || true # start aware prompt
+    [ -r $BASEDIR/.bash/.ps1 ] && source $BASEDIR/.bash/.ps1 || true # start aware prompt
 fi
 [ -r $BASEDIR/.bash/.functions ] && source $BASEDIR/.bash/.functions || true
 #[ -r $BASEDIR/postgres ] && source $BASEDIR/postgres || echo "No postgres script"
